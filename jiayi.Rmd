@@ -1,0 +1,122 @@
+---
+title: "data cleaning"
+author: "Jiayi Shen (js5354)"
+date: "4/22/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+covid = read_csv("covid19-1.csv") %>% 
+  mutate(Date = as.Date(Date, "%m/%d/%Y")) %>% 
+  janitor::clean_names() %>% 
+  group_by(country_region) %>% 
+  mutate(earlist = min(date), 
+         days = as.integer(date - earlist))
+```
+
+```{r}
+## Non-linear least square fitting using `nls`
+china.fit <- nls(confirmed_cases ~ SSlogis(days, Asym, xmid, scal), 
+             data = filter(covid, country_region == "Australia"))
+summary(china.fit)
+```
+
+# Newton-Raphson
+```{r}
+# difference between beta1 and beta2
+beta_norm = function(beta1, beta2) {
+  # beta1 and beta2 are p*1 vectors
+  norm(as.matrix(beta1 - beta2), "F")
+}
+
+# loglik
+logisticstuff <- function(X, Y, a, b, c) {
+  estuff = exp(-b*(X-c))
+  
+  # sum of squares at current value
+  r <- Y - a/(1+estuff)
+  sumsq <- sum(r^2)
+  
+  da = sum(r*(-1/(1+estuff)))
+  db = sum(r*(-a*(X-c)*estuff/(1+estuff)^2))
+  dc = sum(r*(a*b*estuff/(1+estuff)^2))
+  
+  # gradient at betavec
+  grad = c(da, db, dc)
+  grad.matrix = matrix(data = c(r*(-1/(1+estuff)),r*(-a*(X-c)*estuff/(1+estuff)^2), r*(a*b*estuff/(1+estuff)^2)),
+                       nrow = 3, ncol = length(X))
+    
+  # Hessian at betavec
+  hess.sum = 0
+  for (n in 1:length(X)){
+    little.hess <- matrix(0, 3, 3)
+    if((1+estuff[n])^2 == Inf) {next}
+    dadb = estuff[n]*(-(X[n]-c))/(1+estuff[n])^2
+    dadc = estuff[n]*b/(1+estuff[n])^2
+    dbdb = -a*(X[n]-c)^2*estuff[n]*(estuff[n]-1)/(1+estuff[n])^3
+    dcdc = a*b^2*estuff[n]*(1-estuff[n])/(1+estuff[n])^3
+    dbdc = a*estuff[n]*(1-b*(X[n]-c)+(1+b*(X[n]-c))*estuff[n])/(1+estuff[n])^3
+    
+    little.hess[1,] = c(0, dadb, dadc)
+    little.hess[2,] = c(dadb, dbdb, dbdc )
+    little.hess[3,] = c(dadc, dbdc, dcdc )
+    
+    hess.sum = hess.sum + (Y[n] - a/(1+estuff[n]))*little.hess
+  }
+
+  Hess = grad.matrix %*% t(grad.matrix) + hess.sum
+
+  return(list(sumsq = sumsq, grad = grad, Hess = Hess))
+}
+
+
+Y = filter(covid, country_region == "Australia") %>% pull(confirmed_cases)
+X = filter(covid, country_region == "Australia") %>% pull(days)
+
+# test
+logisticstuff(X, Y, a = 100, b = 0.5, c = 50)
+```
+
+
+
+
+
+```{r}
+newton = function(X, Y, func = logisticstuff, start, tol = 1000, maxiter = 200) {
+  i <- 0
+  cur <- start
+  stuff <- func(X, Y, cur[1], cur[2], cur[3])
+  res <- c(0, stuff$sumsq, cur)
+  prevsumsq <- 0
+  prev = rep(0,3)
+  while(i < maxiter && abs(stuff$sumsq - prevsumsq) > tol) {
+    i <- i + 1
+    prevsumsq <- stuff$sumsq
+    prev <- cur
+    
+    Hess = stuff$Hess
+    Hess.scale = 0.01*min(Hess)
+    # while (!is.negative.definite(Hess)) {
+    #   Hess = Hess - Hess.scale*diag(start)
+    # }
+    
+    cur <- prev - solve(Hess) %*% stuff$grad
+    stuff <- func(X, Y, cur[1], cur[2], cur[3]) # log-lik, gradient, Hessian
+    print(rbind(res, c(i, stuff$sumsq, cur[1], cur[2], cur[3])))
+    res <- rbind(res, c(i, stuff$sumsq, cur[1], cur[2], cur[3]))
+  }
+  
+  return(res)
+}
+
+
+# test
+newton(X, Y, func = logisticstuff, start = c(2300,18,5), tol = 1000, maxiter = 200)
+```
+
+
