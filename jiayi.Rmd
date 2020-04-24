@@ -14,16 +14,24 @@ library(tidyverse)
 covid = read_csv("covid19-1.csv") %>% 
   mutate(Date = as.Date(Date, "%m/%d/%Y")) %>% 
   janitor::clean_names() %>% 
-  group_by(country_region) %>% 
-  mutate(earlist = min(date), 
-         days = as.integer(date - earlist))
+  group_by(country_region, date) %>% 
+  summarize(confirmed_cases = sum(confirmed_cases)) %>% 
+  filter(confirmed_cases > 0) %>% 
+  mutate(earliest = min(date), 
+         days = as.integer(date - earliest)) 
+
+covid %>% filter(country_region == "Australia")
+
+#View(covid)
 ```
 
 ```{r}
 ## Non-linear least square fitting using `nls`
 china.fit <- nls(confirmed_cases ~ SSlogis(days, Asym, xmid, scal), 
-             data = filter(covid, country_region == "Australia"))
+             data = filter(covid, country_region == "China"))
 summary(china.fit)
+
+coef(china.fit)[1]
 ```
 
 # Newton-Raphson
@@ -48,38 +56,39 @@ logisticstuff <- function(X, Y, a, b, c) {
   
   # gradient at betavec
   grad = c(da, db, dc)
-  grad.matrix = matrix(data = c(r*(-1/(1+estuff)),r*(-a*(X-c)*estuff/(1+estuff)^2), r*(a*b*estuff/(1+estuff)^2)),
-                       nrow = 3, ncol = length(X))
+  # grad.matrix = matrix(data = c(r*(-1/(1+estuff)),r*(-a*(X-c)*estuff/(1+estuff)^2), r*(a*b*estuff/(1+estuff)^2)),
+  #                      nrow = 3, ncol = length(X))
     
   # Hessian at betavec
   hess.sum = 0
-  for (n in 1:length(X)){
-    little.hess <- matrix(0, 3, 3)
-    if((1+estuff[n])^2 == Inf) {next}
-    dadb = estuff[n]*(-(X[n]-c))/(1+estuff[n])^2
-    dadc = estuff[n]*b/(1+estuff[n])^2
-    dbdb = -a*(X[n]-c)^2*estuff[n]*(estuff[n]-1)/(1+estuff[n])^3
-    dcdc = a*b^2*estuff[n]*(1-estuff[n])/(1+estuff[n])^3
-    dbdc = a*estuff[n]*(1-b*(X[n]-c)+(1+b*(X[n]-c))*estuff[n])/(1+estuff[n])^3
-    
-    little.hess[1,] = c(0, dadb, dadc)
-    little.hess[2,] = c(dadb, dbdb, dbdc )
-    little.hess[3,] = c(dadc, dbdc, dcdc )
-    
-    hess.sum = hess.sum + (Y[n] - a/(1+estuff[n]))*little.hess
-  }
+  # for (n in 1:length(X)){
+  #   little.hess <- matrix(0, 3, 3)
+  #   if((1+estuff[n])^2 == Inf) {next}
+  #   dadb = estuff[n]*(-(X[n]-c))/(1+estuff[n])^2
+  #   dadc = estuff[n]*b/(1+estuff[n])^2
+  #   dbdb = -a*(X[n]-c)^2*estuff[n]*(estuff[n]-1)/(1+estuff[n])^3
+  #   dcdc = a*b^2*estuff[n]*(1-estuff[n])/(1+estuff[n])^3
+  #   dbdc = a*estuff[n]*(1-b*(X[n]-c)+(1+b*(X[n]-c))*estuff[n])/(1+estuff[n])^3
+  #   
+  #   little.hess[1,] = c(0, dadb, dadc)
+  #   little.hess[2,] = c(dadb, dbdb, dbdc )
+  #   little.hess[3,] = c(dadc, dbdc, dcdc )
+  #   
+  #   hess.sum = hess.sum + (Y[n] - a/(1+estuff[n]))*little.hess
+  # }
 
-  Hess = grad.matrix %*% t(grad.matrix) + hess.sum
-
+  # Hess = grad.matrix %*% t(grad.matrix) + hess.sum
+  Hess = diag(3)/10
+  
   return(list(sumsq = sumsq, grad = grad, Hess = Hess))
 }
 
 
-Y = filter(covid, country_region == "Australia") %>% pull(confirmed_cases)
-X = filter(covid, country_region == "Australia") %>% pull(days)
+Y = filter(covid, country_region == "China") %>% pull(confirmed_cases)
+X = filter(covid, country_region == "China") %>% pull(days)
 
 # test
-logisticstuff(X, Y, a = 100, b = 0.5, c = 50)
+logisticstuff(X, Y, a = 800000, b = 18, c = 20)
 ```
 
 
@@ -100,13 +109,23 @@ newton = function(X, Y, func = logisticstuff, start, tol = 1000, maxiter = 200) 
     prev <- cur
     
     Hess = stuff$Hess
-    Hess.scale = 0.01*min(Hess)
+    # Hess.scale = 0.01*min(Hess)
     # while (!is.negative.definite(Hess)) {
     #   Hess = Hess - Hess.scale*diag(start)
     # }
+    step = 1
+    cur <- prev - solve(Hess) %*% stuff$grad * step
+    stuff_temp <- func(X, Y, a = cur[1], b = cur[2], c = cur[3]) # log-lik, gradient, Hessian
+    k=1
+    while (stuff_temp$sumsq > prevsumsq & k<100) {
+      #print(k)
+      k = k + 1
+      step = step/2
+      cur <- prev - solve(Hess) %*% stuff$grad * step
+      stuff_temp <- func(X, Y, a = cur[1], b = cur[2], c = cur[3]) # log-lik, gradient, Hessian
+    }
+    stuff = func(X, Y, cur[1], cur[2], cur[3])
     
-    cur <- prev - solve(Hess) %*% stuff$grad
-    stuff <- func(X, Y, cur[1], cur[2], cur[3]) # log-lik, gradient, Hessian
     print(rbind(res, c(i, stuff$sumsq, cur[1], cur[2], cur[3])))
     res <- rbind(res, c(i, stuff$sumsq, cur[1], cur[2], cur[3]))
   }
@@ -116,7 +135,29 @@ newton = function(X, Y, func = logisticstuff, start, tol = 1000, maxiter = 200) 
 
 
 # test
-newton(X, Y, func = logisticstuff, start = c(2300,18,5), tol = 1000, maxiter = 200)
+re = newton(X, Y, func = logisticstuff, start = c(90000,5,10), tol = 1000, maxiter = 1000)
+
+unique(covid$country_region)
+covid %>% 
+  filter(country_region %in% c("China", "Australia", "France", "Korea, South")) %>% 
+  ggplot(aes(x = days, y = confirmed_cases)) +
+    geom_point() +
+    facet_grid(~country_region)
+
+logisticf = function(X, a, b, c) {
+  estuff = exp(-b*(X-c)) 
+  return(a/(1+estuff))
+}
+
+
+x = 1:1000/10
+#y = logisticf(x, a = re[200,3], b = re[200,4], c = re[200,5])
+y = logisticf(x, a = re[nrow(re),3], b = re[nrow(re),4], c = re[nrow(re),5])
+df = tibble(x = x, y = y) 
+
+  ggplot() +
+  geom_point(aes(x = x, y = y), data = df ) +
+  geom_point(aes(x = days, y = confirmed_cases), filter(covid, country_region == "China"))
 ```
 
 
