@@ -23,10 +23,18 @@ covid = read_csv("covid19-1.csv") %>%
 covid %>% filter(country_region == "Australia")
 
 #View(covid)
+unique(covid$country_region)
+
+covid %>% 
+  filter(country_region %in% c("China", "Australia", "France", "Korea, South")) %>% 
+  ggplot(aes(x = days, y = confirmed_cases)) +
+    geom_point() +
+    facet_grid(~country_region)
 ```
 
 ```{r}
 ## Non-linear least square fitting using `nls`
+
 china.fit <- nls(confirmed_cases ~ SSlogis(days, Asym, xmid, scal), 
              data = filter(covid, country_region == "China"))
 summary(china.fit)
@@ -84,11 +92,8 @@ logisticstuff <- function(X, Y, a, b, c) {
 }
 
 
-Y = filter(covid, country_region == "China") %>% pull(confirmed_cases)
-X = filter(covid, country_region == "China") %>% pull(days)
-
 # test
-logisticstuff(X, Y, a = 800000, b = 18, c = 20)
+# logisticstuff(X/10, Y/1000, a = 79, b = 1, c = 2)
 ```
 
 
@@ -126,38 +131,53 @@ newton = function(X, Y, func = logisticstuff, start, tol = 1000, maxiter = 200) 
     }
     stuff = func(X, Y, cur[1], cur[2], cur[3])
     
-    print(rbind(res, c(i, stuff$sumsq, cur[1], cur[2], cur[3])))
+    print( c(i, stuff$sumsq, cur[1], cur[2], cur[3]))
     res <- rbind(res, c(i, stuff$sumsq, cur[1], cur[2], cur[3]))
   }
   
   return(res)
 }
+```
 
+Apply newton on covid data by country/region
+```{r}
+# countries with more data
+covid %>% group_by(country_region) %>% summarize(length = max(days)) %>% arrange(desc(length))
 
-# test
-re = newton(X, Y, func = logisticstuff, start = c(90000,5,10), tol = 1000, maxiter = 1000)
+place = "China"
+# place = "Japan"; place = "Korea, South"; place =  "Taiwan*"; place = "Thailand"
 
-unique(covid$country_region)
-covid %>% 
-  filter(country_region %in% c("China", "Australia", "France", "Korea, South")) %>% 
-  ggplot(aes(x = days, y = confirmed_cases)) +
-    geom_point() +
-    facet_grid(~country_region)
+Y = filter(covid, country_region == place) %>% pull(confirmed_cases)
+X = filter(covid, country_region == place) %>% pull(days)
 
+digits_Y  = max(nchar(trunc(Y)))-2
+a_start = max(Y/(10**(digits_Y)))
+b_start = 1
+c_start = max(median(X/10), 5)
+re = newton(X = X/10, Y = Y/(10**digits_Y), func = logisticstuff, 
+            start = c(a_start,b_start,c_start), 
+            tol = 1e-10, maxiter = 1000)
+
+# Compare with nls fit
+nls.fit <- nls(confirmed_cases ~ SSlogis(days, Asym, xmid, scal), 
+             data = filter(covid, country_region == place))
+summary(nls.fit)
+
+# plot
 logisticf = function(X, a, b, c) {
   estuff = exp(-b*(X-c)) 
   return(a/(1+estuff))
 }
-
-
-x = 1:1000/10
-#y = logisticf(x, a = re[200,3], b = re[200,4], c = re[200,5])
-y = logisticf(x, a = re[nrow(re),3], b = re[nrow(re),4], c = re[nrow(re),5])
+x = 1:600/10
+y = logisticf(x, a = re[nrow(re),3]*(10**(digits_Y)), b = re[nrow(re),4]/10, c = re[nrow(re),5]*10)
 df = tibble(x = x, y = y) 
 
-  ggplot() +
-  geom_point(aes(x = x, y = y), data = df ) +
-  geom_point(aes(x = days, y = confirmed_cases), filter(covid, country_region == "China"))
+ggplot() +
+  geom_point(aes(x = x, y = y), data = df, color = "blue") +
+  geom_point(aes(x = days, y = confirmed_cases), 
+             filter(covid, country_region == place))
 ```
+```
+
 
 
