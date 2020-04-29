@@ -1,5 +1,5 @@
 ---
-title: "data cleaning"
+title: "Data cleaning and Newton"
 author: "Jiayi Shen (js5354)"
 date: "4/22/2020"
 output: html_document
@@ -23,7 +23,8 @@ covid = read_csv("covid19-1.csv") %>%
 covid %>% filter(country_region == "Australia")
 
 #View(covid)
-unique(covid$country_region)
+place_list = unique(covid$country_region)
+place_list
 
 covid %>% 
   filter(country_region %in% c("China", "Australia", "France", "Korea, South")) %>% 
@@ -131,7 +132,7 @@ newton = function(X, Y, func = logisticstuff, start, tol = 1000, maxiter = 200) 
     }
     stuff = func(X, Y, cur[1], cur[2], cur[3])
     
-    print( c(i, stuff$sumsq, cur[1], cur[2], cur[3]))
+    #print( c(i, stuff$sumsq, cur[1], cur[2], cur[3]))
     res <- rbind(res, c(i, stuff$sumsq, cur[1], cur[2], cur[3]))
   }
   
@@ -144,7 +145,7 @@ Apply newton on covid data by country/region
 # countries with more data
 covid %>% group_by(country_region) %>% summarize(length = max(days)) %>% arrange(desc(length))
 
-place = "China"
+place = "Jamaica"
 # place = "Japan"; place = "Korea, South"; place =  "Taiwan*"; place = "Thailand"
 
 Y = filter(covid, country_region == place) %>% pull(confirmed_cases)
@@ -152,11 +153,12 @@ X = filter(covid, country_region == place) %>% pull(days)
 
 digits_Y  = max(nchar(trunc(Y)))-2
 a_start = max(Y/(10**(digits_Y)))
-b_start = 1
+b_start = 0.3
 c_start = max(median(X/10), 5)
 re = newton(X = X/10, Y = Y/(10**digits_Y), func = logisticstuff, 
             start = c(a_start,b_start,c_start), 
             tol = 1e-10, maxiter = 1000)
+View(re)
 
 # Compare with nls fit
 nls.fit <- nls(confirmed_cases ~ SSlogis(days, Asym, xmid, scal), 
@@ -175,8 +177,51 @@ df = tibble(x = x, y = y)
 ggplot() +
   geom_point(aes(x = x, y = y), data = df, color = "blue") +
   geom_point(aes(x = days, y = confirmed_cases), 
-             filter(covid, country_region == place))
+             filter(covid, country_region == place))+
+  labs(title = place)
 ```
+
+Apply Newton to all countries
+```{r}
+logit_growth = function(place){
+  
+  Y = filter(covid, country_region == place) %>% pull(confirmed_cases)
+  X = filter(covid, country_region == place) %>% pull(days)
+  
+  digits_Y  = max(nchar(trunc(Y)))-2
+  a_start = max(Y/(10**(digits_Y)))
+  b_start = 1
+  c_start = max(median(X/10), 5)
+  re = newton(X = X/10, Y = Y/(10**digits_Y), func = logisticstuff, 
+              start = c(a_start,b_start,c_start), 
+              tol = 1e-10, maxiter = 1000)
+  return(list(a = re[nrow(re),3]*(10**(digits_Y)), 
+              b = re[nrow(re),4]/10, 
+              c = re[nrow(re),5]*10))
+  
+}
+
+#logit_growth("China")
+res_df = data.frame(country= NULL, a = NULL, b = NULL, c = NULL)
+for (place in place_list){
+  res = logit_growth(place)
+  res_df = rbind(res_df, cbind(country = place, 
+                               a = res$a,
+                               b = res$b,
+                               c = res$c))
+}
+```
+
+
+```{r}
+# debug issues
+res_df %>% 
+  mutate(a = as.numeric(as.character(a)), 
+         b = as.numeric(as.character(b)), 
+         c = as.numeric(as.character(c))) %>% 
+  filter(a < 0 | b < 0 | c<0) %>% pull(country) %>% as.character()
+
+covid %>% filter(country_region == "Zambia") %>% View
 ```
 
 
