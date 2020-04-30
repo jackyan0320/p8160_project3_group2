@@ -225,11 +225,12 @@ logit_growth = function(place){
 res_df = data.frame(country= NULL, a = NULL, b = NULL, c = NULL)
 for (place in place_list){
   res = logit_growth(place)
-  res_df = rbind(res_df, cbind(country = place, 
+  res_df = bind_rows(res_df, bind_cols(country = place, 
                                a = res$a,
                                b = res$b,
                                c = res$c))
 }
+typeof(res_df)
 ```
 
 

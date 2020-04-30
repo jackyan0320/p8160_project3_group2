@@ -62,28 +62,35 @@ EM_MG_algrm <- function(data, ncluster){
 }
 ```
 
+Try different number of mixtures
 
 ```{r}
-library(MASS)
-set.seed(123123)
-Sigma <- matrix(c(1,0.5,0.5,0.5,1,0.5, 0.5,0.5,1),3,3)
-x1 = mvrnorm(n = 50, mu=c(50000,1,10), Sigma)
-Sigma <- matrix(c(2,0.5,0.5,0.5,2,0.5, 0.5,0.5,2),3,3)
-x2 = mvrnorm(n = 50, mu=c(5000,1,5), Sigma)
-Sigma <- matrix(c(3,0.5,0.5,0.5,3,0.5, 0.5,0.5,3),3,3)
-x3 = mvrnorm(n = 50, mu=c(20,1,0), Sigma)
-xx = rbind(x1,x2,x3)
-#plot(xx)
-
-res2 = EM_MG_algrm(xx, 3)
+#try # of mixture components = 3,4,5,6
+set.seed(8160)
+countryname <- res_df$country
+countryname 
+model_1 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 3)
+model_2 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 4)
+model_3 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 5)
+model_4 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 6)
+em_result_1 <- cbind(countryname, model_1$cluster[,2])
+em_result_2 <- cbind(countryname, model_2$cluster[,2])
+em_result_3 <- cbind(countryname, model_3$cluster[,2])
+em_result_4 <- cbind(countryname, model_4$cluster[,2])
 ```
+
 
 # K-means
 ```{r}
-set.seed(20)
-clusters <- kmeans(xx, 3)
-# Save the cluster number in the dataset as column 'Borough'
-clusternumber <- as.factor(clusters$cluster)
-#points(xx[which(clusternumber==1),], col=2)
+set.seed(8160)
+kmeans_model_1 <- kmeans(res_df[,c("a", "b", "c")], 3)
+kmeans_model_2 <- kmeans(res_df[,c("a", "b", "c")], 4)
+kmeans_model_3 <- kmeans(res_df[,c("a", "b", "c")], 5)
+kmeans_model_4 <- kmeans(res_df[,c("a", "b", "c")], 6)
+kmeans_result_1 <- cbind(countryname, kmeans_model_1$cluster)
+kmeans_result_2 <- cbind(countryname, kmeans_model_2$cluster)
+kmeans_result_3 <- cbind(countryname, kmeans_model_3$cluster)
+kmeans_result_4 <- cbind(countryname, kmeans_model_4$cluster)
 ```
 
+For me I think gaussian mixture clustering is better.
