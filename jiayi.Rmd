@@ -11,7 +11,7 @@ library(tidyverse)
 ```
 
 ```{r}
-covid = read_csv("covid19-1.csv") %>% 
+covid_old = read_csv("covid19-1.csv") %>% 
   mutate(Date = as.Date(Date, "%m/%d/%Y")) %>% 
   janitor::clean_names() %>% 
   group_by(country_region, date) %>% 
@@ -19,6 +19,26 @@ covid = read_csv("covid19-1.csv") %>%
   filter(confirmed_cases > 0) %>% 
   mutate(earliest = min(date), 
          days = as.integer(date - earliest)) 
+
+series_df = 
+  read_csv("time_series_covid19_confirmed_global_0429.csv") %>% 
+  select(-Lat, -Long) 
+date_varname = series_df %>% select(-"Province/State", -"Country/Region") %>% names()
+
+covid = 
+  series_df %>% 
+  rename(province_state = "Province/State",
+         country_region = "Country/Region") %>% 
+  group_by(country_region) %>%
+  summarize_at(date_varname, sum) %>% 
+  gather(key = "date", value = "confirmed_cases", "1/22/20":"4/29/20") %>% 
+  filter(confirmed_cases != 0) %>% 
+  mutate(date = paste0(date, "20"),
+         date = as.Date(date, "%m/%d/%Y")) %>% 
+  arrange(country_region, date) %>% 
+  mutate(earliest = min(date), 
+         days = as.integer(date - earliest)) 
+
 
 covid %>% filter(country_region == "Australia")
 
