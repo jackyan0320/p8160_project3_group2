@@ -36,10 +36,10 @@ covid =
   mutate(date = paste0(date, "20"),
          date = as.Date(date, "%m/%d/%Y")) %>% 
   arrange(country_region, date) %>% 
+  group_by(country_region) %>% 
   mutate(earliest = min(date), 
          days = as.integer(date - earliest)) 
 
-saveRDS(covid, "covid.RDS")
 
 covid %>% filter(country_region == "Australia")
 
@@ -179,7 +179,7 @@ c_start = max(median(X/10), 5)
 re = newton(X = X/10, Y = Y/(10**digits_Y), func = logisticstuff, 
             start = c(a_start,b_start,c_start), 
             tol = 1e-10, maxiter = 1000)
-View(re)
+#View(re)
 
 # Compare with nls fit
 nls.fit <- nls(confirmed_cases ~ SSlogis(days, Asym, xmid, scal), 
@@ -191,12 +191,16 @@ logisticf = function(X, a, b, c) {
   estuff = exp(-b*(X-c)) 
   return(a/(1+estuff))
 }
+
 x = 1:600/10
 y = logisticf(x, a = re[nrow(re),3]*(10**(digits_Y)), b = re[nrow(re),4]/10, c = re[nrow(re),5]*10)
+y_nls = logisticf(x, a = coef(nls.fit)[1], b = coef(nls.fit)[3], c = coef(nls.fit)[2])
 df = tibble(x = x, y = y) 
+df_nls = tibble(x = x, y = y_nls) 
 
 ggplot() +
   geom_point(aes(x = x, y = y), data = df, color = "blue") +
+  geom_point(aes(x = x, y = y_nls), data = df_nls, color = "red") +
   geom_point(aes(x = days, y = confirmed_cases), 
              filter(covid, country_region == place))+
   labs(title = place)
@@ -218,7 +222,9 @@ logit_growth = function(place){
               tol = 1e-10, maxiter = 1000)
   return(list(a = re[nrow(re),3]*(10**(digits_Y)), 
               b = re[nrow(re),4]/10, 
-              c = re[nrow(re),5]*10))
+              c = re[nrow(re),5]*10,
+              residr2 = re[nrow(re),2],
+              ndays = length()))
   
 }
 
@@ -227,12 +233,14 @@ res_df = data.frame(country= NULL, a = NULL, b = NULL, c = NULL)
 for (place in place_list){
   res = logit_growth(place)
   res_df = bind_rows(res_df, bind_cols(country = place, 
+                               residr2 = res$
                                a = res$a,
                                b = res$b,
                                c = res$c))
 }
 typeof(res_df)
-saveRDS(res_df, "logistic_res.RDS")
+length(res_df)
+nrow(res_df)
 ```
 
 
@@ -245,6 +253,8 @@ res_df %>%
   filter(a < 0 | b < 0 | c<0) %>% pull(country) %>% as.character()
 
 covid %>% filter(country_region == "Zambia") %>% View
+
+res_df
 ```
 
 

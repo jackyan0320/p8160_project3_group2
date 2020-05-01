@@ -1,7 +1,7 @@
 ---
 title: 'Project 3: Analyses of daily COVID-19 cases across nations'
-author: "Jack Yan; Jiayi Shen; Siquan Wang"
-date: "Due 5/1/2020"
+author: "Jiayi Shen (js5354), Siquan Wang (sw3442), Jack Yan (xy2395)"
+date: "5/1/2020"
 output:
   pdf_document:
     latex_engine: xelatex
