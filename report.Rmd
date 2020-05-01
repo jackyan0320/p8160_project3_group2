@@ -18,8 +18,9 @@ The objective of this project includings:
 - Apply clustering methods to the logistic grwoth model parameters, and observe the patterns.  
 
 
-## 2. Data
-The datasets used in this project are adapted from https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_daily_reports. We used the latest data updated on 04/29/2020, so that we have more data points. The data recorded the following variables:  
+# 2. Data
+
+We used the latest data updated on 04/29/2020, so that we have more data points. The data recorded the following variables:  
 
 **Id:** Record ID
 
@@ -55,7 +56,7 @@ $$
 $$
 where $\nabla l(\boldsymbol{\theta}_{i-1})$ is the gradient, and $[\nabla^2 l(\boldsymbol{\theta}_{i-1})]^{-1}$ is the Hessian matrix.  
   
-  In this particular case, we replace the Hessian matrix with an identity matrix to simplify the computation and increase the efficiency. Step-halfing is also incorporated to control the step size to make sure we have a monotone trend.. Then the $i$th step of our Newton algorithm is given by 
+  In this particular case, we replace the Hessian matrix with an identity matrix to simplify the computation. Step-halfing is also incorporated to control the step size to make sure we have a monotone trend.. Then the $i$th step of our Newton algorithm is given by 
 
 $$
 \boldsymbol{\theta}_i = \boldsymbol{\theta}_{i-1} + \lambda \boldsymbol H_{i-1, p \times p} \nabla l(\boldsymbol{\theta}_{i-1})
@@ -161,23 +162,7 @@ sum(combined_df$confirmed_cases >= 0.95*combined_df$a & res_df$c < 98)
 # combined_df %>% filter(b >0.3 & b < 0.4)
 ```
 
-
-Logistic curves were used to fit cumulative confirmed cases in each country/region. The fitted results for some selected countries are shown in **Figure 1**. According to the model, as of 04/29/2020, `r sum(res_df$c > 98)` regions have passed the midpoint, among which 100 regions are close to the end of virus spreading. If the confirmed cases in a region is greater than 95% of the estimated `a` (upper bound) in the logistic curve, we define the region as close to the end of virus spreading. 
-
-In general, Regions with small population size or at an early stage of spreading tend to have a more flat rate of growth, such as Bhutan and Venezuela (**Figure 2**). On the other hand, some regions that are close or have reached the end of virus spreading (at least according to the data, **Figure 3**) tend to have a more steep rate of growth.
-
-
-
-## Task 1.2
-*Do you think if the logistic curve is a reasonable model for fitting the curmulative casesa and predicting future new cases?*  
-  
-I think logistic curve might not be an appropriate model for fitting the curmulative cases and predicting future new cases. First our Newton's algorithm suggests that although we spent much efforts in optimizing this optimization algorithm (including standardization, replacing Hessian by Identity mattrix and step-halfing), the convergence speed might still have some unknown internal issue and the results highly depending on the initial starting value if we do not do standardization, which means that our model is not that robust and the estimated curve shape parameters might be questionable in some unusual case. Second, some African countries' results are little bit strange base on our model, which might be due to too liitle data available.  Finally, I may suggest using some other exponential-distribution based curves to fit the data and incorporate more shape paramters in the model fitting process. Or we could some hybrid approaches to fit different types of curves based on preclassification of countries. 
-
-
-\newpage
-
-# Figures
-```{r, echo=FALSE, message=FALSE}
+```{r fig1, echo=FALSE, message=FALSE, fig.height=4.5, fig.width=5.5, fig.align="center"}
 library(patchwork)
 library(tidyverse)
 # read in data
@@ -196,7 +181,7 @@ plot_logistic_curve = function(place) {
     geom_line(aes(x = x, y = y), data = df, color = "blue", size = 1.2, alpha = 0.8) +
     geom_point(aes(x = days, y = confirmed_cases),  alpha = 0.5, size = 0.8, 
                filter(covid, country_region == place)) +
-    ggtitle(place, subtitle= paste0("a = ", round(a,0), ", b = ", round(b,2), ", c = ", round(c,0)))
+    ggtitle(place, subtitle = paste0("a = ", round(a,0), ", b = ", round(b,2), ", c = ", round(c,0)))
 }
 
 plot1 = plot_logistic_curve(place = "Brunei")
@@ -206,44 +191,42 @@ plot4 = plot_logistic_curve(place = "France")
 (plot1 + plot2) / (plot3 + plot4)
 
 # plot_logistic_curve(place = "Venezuela")
-
-# saveRDS(res_df, "logistic_res.RDS")
-
-#i = i+1
-#plot_logistic_curve(place = place_list[i])
 ```
 
-\center __Figure 1__ Logistic curves fitted on cumulative confirmed cases in selected countries \center
+       __Figure 1__ Logistic curves fitted on cumulative confirmed cases in selected countries  
+ 
+Logistic curves were used to fit cumulative confirmed cases in each country/region. The fitted results for some selected countries are shown in **Figure 1**. According to the model, as of 04/29/2020, `r sum(res_df$c > 98)` regions have passed the midpoint, among which 100 regions are close to the end of virus spreading. If the confirmed cases in a region is greater than 95% of the estimated `a` (upper bound) in the logistic curve, we define the region as close to the end of virus spreading. 
 
-\newpage
-
-
-```{r echo=FALSE, message=FALSE}
+```{r fig2, echo=FALSE, message=FALSE, fig.height=2.5, fig.width=5.5, fig.align="center"}
+plot1 = plot_logistic_curve(place = "Cambodia")
+plot2 = plot_logistic_curve(place = "Saint Lucia")
+plot1 + plot2
+```
+       __Figure 2__ Logistic curves of selected countries with steep rate of growth  
+       
+```{r fig3, echo=FALSE, message=FALSE, fig.height=5, fig.width=5.5, fig.align="center"}
 plot1 = plot_logistic_curve(place = "Bhutan")
 plot2 = plot_logistic_curve(place = "Venezuela")
 plot3 = plot_logistic_curve(place = "Mongolia")
 plot4 = plot_logistic_curve(place = "Albania")
 (plot1 + plot2) / (plot3 + plot4)
 ```
-\center __Figure 2__ Logistic curves of selected countries with flat rate of growth \center
-\newpage
+       __Figure 3__ Logistic curves of selected countries with flat rate of growth  
 
 
-```{r echo=FALSE, message=FALSE}
-plot1 = plot_logistic_curve(place = "Cambodia")
-plot2 = plot_logistic_curve(place = "Saint Lucia")
-plot1 + plot2
-```
-\center __Figure 3__ Logistic curves of selected countries with steep rate of growth \center
-\newpage
+In general, some regions that are close to or have reached the end of virus spreading (at least according to the model) tend to have a more steep rate of growth (**Figure 2**). On the other hand, regions with small population size or at an early stage of spreading tend to have a more flat rate of growth, such as Bhutan and Venezuela (**Figure 3**).
 
-## Task 2: Clustering your fitted curves
 
-*Apply K-mean and Guassian mixture model (with EM algorithm) to cluster the fitted parameters $(\hat{a},\hat{b},\hat{c})$; Which algoirhtm does a better job in clustering those curves? Are the resulting clusters related to geogrpahic regions, or the starting timeing of the local virus speading, or the resources of the regions? You may use external informations to help understand the clusters, i.e. find plausible explanations why some regions have similar $(a, b,c)$?*
+Logistic curve might not be an appropriate model for fitting the curmulative cases and predicting future new cases. First our Newton's algorithm suggests that although we spent much efforts in optimizing this optimization algorithm (including standardization, replacing Hessian by Identity mattrix and step-halfing), the convergence speed might still have some unknown internal issue and the results highly depending on the initial starting value if we do not do standardization, which means that our model is not that robust and the estimated curve shape parameters might be questionable in some unusual case. Second, some African countries' results are little bit strange base on our model, which might be due to too liitle data available.  Finally, I may suggest using some other exponential-distribution based curves to fit the data and incorporate more shape paramters in the model fitting process. Or we could some hybrid approaches to fit different types of curves based on preclassification of countries. 
 
-We first wrote the function for applying EM algorithm for multivariate Gaussian mixture model as following:
 
-```{r}
+## 4.2 Clustering fitted curves
+
+
+We first wrote the function to apply EM algorithm for multivariate Gaussian mixture model. Then we tried different number of mixture components. Code is in the Appendix.
+
+```{r, echo = F }
+# function to apply EM algorithm for multivariate Gaussian mixture model
 EM_MG_algrm <- function(data, ncluster){
 
   #setting
@@ -293,22 +276,274 @@ EM_MG_algrm <- function(data, ncluster){
 }
 ```
 
-Then we tried different number of mixture components as following:
 
-```{r}
+```{r, echo=F }
 library("plot3D")
 #try # of mixture components = 3,4,5,6
 set.seed(8160)
 countryname <- res_df$country
-countryname 
-model_1 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 3)
-model_2 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 4)
-model_3 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 5)
-model_4 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 6)
+
+cluster_res = readRDS("cluster_res.RDS")
+model_1 = cluster_res$model_1
+model_2 = cluster_res$model_2
+model_3 = cluster_res$model_3
+model_4 = cluster_res$model_4
 em_result_1 <- cbind(res_df, model_1$cluster[,2])
 em_result_2 <- cbind(res_df, model_2$cluster[,2])
 em_result_3 <- cbind(res_df, model_3$cluster[,2])
 em_result_4 <- cbind(res_df, model_4$cluster[,2])
+
+# scatter3D(em_result_1$a, em_result_1$b, em_result_1$c, bty = "g", pch = 18, 
+#           col.var = as.integer(model_1$cluster[,2]),
+#           col = c("red", "green", "yellow"))
+# cat("\n")
+# scatter3D(em_result_2$a, em_result_2$b, em_result_2$c, bty = "g", pch = 18, 
+#           col.var = as.integer(model_2$cluster[,2]),
+#           col = c("red", "green", "yellow", "blue"))
+# cat("\n")
+# scatter3D(em_result_3$a, em_result_3$b, em_result_3$c, bty = "g", pch = 18, 
+#           col.var = as.integer(model_3$cluster[,2]),
+#           col = c("red", "green", "yellow","blue", "purple"))
+# cat("\n")
+scatter3D(em_result_4$a, em_result_4$b, em_result_4$c, bty = "g", pch = 18, 
+          col.var = as.integer(model_4$cluster[,2]),
+          col = c("red", "green", "yellow","blue", "purple", "black"))
+cat("\n")
+```
+
+Since we are doing clustering based on three paramters simutaneouly: a, b and c, it will be a little bit messy if we visualize the result in a 3-D plot. So we just simply provided the above result and dertermined which number of mixture components is better. From the above plots we could see that when the number of mixture components is 4, the clustering algorithm gives us a stable result. Too small or too big number of mixtures will either cannot capture the underlying pattern or make the plot more messy.
+
+
+Similarly we applied the k-means clustering method into our data:
+
+```{r, echo=F}
+set.seed(8160)
+kmeans_model_1 <- kmeans(res_df[,c("a", "b", "c")], 3)
+kmeans_model_2 <- kmeans(res_df[,c("a", "b", "c")], 4)
+kmeans_model_3 <- kmeans(res_df[,c("a", "b", "c")], 5)
+kmeans_model_4 <- kmeans(res_df[,c("a", "b", "c")], 6)
+kmeans_result_1 <- cbind(res_df, kmeans_model_1$cluster)
+kmeans_result_2 <- cbind(res_df, kmeans_model_2$cluster)
+kmeans_result_3 <- cbind(res_df, kmeans_model_3$cluster)
+kmeans_result_4 <- cbind(res_df, kmeans_model_4$cluster)
+```
+
+```{r, echo=F}
+# scatter3D(kmeans_result_1$a, kmeans_result_1$b, kmeans_result_3$c, bty = "g", pch = 18, 
+#           col.var = as.integer(kmeans_model_1$cluster),
+#           col = c("red", "green", "yellow"))
+# cat("\n")
+# scatter3D(kmeans_result_2$a, kmeans_result_2$b, kmeans_result_3$c, bty = "g", pch = 18, 
+#           col.var = as.integer(kmeans_model_1$cluster),
+#           col = c("red", "green", "yellow", "blue"))
+# cat("\n")
+# scatter3D(kmeans_result_3$a, kmeans_result_2$b, kmeans_result_3$c, bty = "g", pch = 18, 
+#           col.var = as.integer(kmeans_model_1$cluster),
+#           col = c("red", "green", "yellow","blue", "purple"))
+# cat("\n")
+scatter3D(kmeans_result_4$a, kmeans_result_2$b, kmeans_result_3$c, bty = "g", pch = 18, 
+          col.var = as.integer(kmeans_model_1$cluster),
+          col = c("red", "green", "yellow","blue", "purple", "black"))
+cat("\n")
+```
+
+Following similar logic in Gaussian mixture model, we just simply provided the above plots and dertermined which value of k is better. Based on the graph, we conclude that K = 4 gives us the best result, which corresponds to the result of Gaussian mixture model. So both  clustering algorithms suggests that we could choose 4 clustering centers in our dataset. As an example of illustration, we would use the result of k-means clustering to answer the questions listed.
+
+
+In this porject both K-mean and Guassian mixture model (with EM algorithm) give us similar clustering results with 4 clusters as optimal. We could clearly see patterns in the clustering result, for example, some of the most disease-severe countries are clustered together such as : Italy, US, France and Spain. Also some of the South-American geograpahic region countries are clustered togther such as Chile, Brazil. Finally, most of the countries in the world are clustered together as either their disease situation is controlled and thus not that severe, or still under development but the total case is still relatively low.   
+
+
+# Appendix
+```{r, eval=F}
+library(tidyverse)
+library("plot3D")
+library(patchwork)
+
+series_df = 
+  read_csv("time_series_covid19_confirmed_global_0429.csv") %>% 
+  select(-Lat, -Long) 
+date_varname = series_df %>% select(-"Province/State", -"Country/Region") %>% names()
+
+covid = 
+  series_df %>% 
+  rename(province_state = "Province/State",
+         country_region = "Country/Region") %>% 
+  group_by(country_region) %>%
+  summarize_at(date_varname, sum) %>% 
+  gather(key = "date", value = "confirmed_cases", "1/22/20":"4/29/20") %>% 
+  filter(confirmed_cases != 0) %>% 
+  mutate(date = paste0(date, "20"),
+         date = as.Date(date, "%m/%d/%Y")) %>% 
+  arrange(country_region, date) %>% 
+  mutate(earliest = min(date), 
+         days = as.integer(date - earliest)) 
+
+# saveRDS(covid, "covid.RDS")
+
+place_list = unique(covid$country_region)
+ 
+# Newton-Raphson
+# difference between beta1 and beta2
+beta_norm = function(beta1, beta2) {
+  # beta1 and beta2 are p*1 vectors
+  norm(as.matrix(beta1 - beta2), "F")
+}
+
+# loglik
+logisticstuff <- function(X, Y, a, b, c) {
+  estuff = exp(-b*(X-c))
+  
+  # sum of squares at current value
+  r <- Y - a/(1+estuff)
+  sumsq <- sum(r^2)
+  
+  da = sum(r*(-1/(1+estuff)))
+  db = sum(r*(-a*(X-c)*estuff/(1+estuff)^2))
+  dc = sum(r*(a*b*estuff/(1+estuff)^2))
+  
+  # gradient at betavec
+  grad = c(da, db, dc)
+ 
+  Hess = diag(3)/10
+  
+  return(list(sumsq = sumsq, grad = grad, Hess = Hess))
+}
+ 
+# newton raphson
+newton = function(X, Y, func = logisticstuff, start, tol = 1000, maxiter = 200) {
+  i <- 0
+  cur <- start
+  stuff <- func(X, Y, cur[1], cur[2], cur[3])
+  res <- c(0, stuff$sumsq, cur)
+  prevsumsq <- 0
+  prev = rep(0,3)
+  while(i < maxiter && abs(stuff$sumsq - prevsumsq) > tol) {
+    i <- i + 1
+    prevsumsq <- stuff$sumsq
+    prev <- cur
+    Hess = stuff$Hess
+    step = 1
+    cur <- prev - solve(Hess) %*% stuff$grad * step
+    stuff_temp <- func(X, Y, a = cur[1], b = cur[2], c = cur[3]) # log-lik, gradient, Hessian
+    k = 1
+    while (stuff_temp$sumsq > prevsumsq & k<100) {
+      k = k + 1
+      step = step/2
+      cur <- prev - solve(Hess) %*% stuff$grad * step
+      stuff_temp <- func(X, Y, a = cur[1], b = cur[2], c = cur[3]) # log-lik, gradient, Hessian
+    }
+    stuff = func(X, Y, cur[1], cur[2], cur[3])
+    res <- rbind(res, c(i, stuff$sumsq, cur[1], cur[2], cur[3]))
+  }
+  
+  return(res)
+}
+ 
+# Apply Newton to all countries
+logisticf = function(X, a, b, c) {
+  estuff = exp(-b*(X-c)) 
+  return(a/(1+estuff))
+}
+
+logit_growth = function(place){
+  
+  Y = filter(covid, country_region == place) %>% pull(confirmed_cases)
+  X = filter(covid, country_region == place) %>% pull(days)
+  
+  digits_Y  = max(nchar(trunc(Y)))-2
+  a_start = max(Y/(10**(digits_Y)))
+  b_start = 1
+  c_start = max(median(X/10), 5)
+  re = newton(X = X/10, Y = Y/(10**digits_Y), func = logisticstuff, 
+              start = c(a_start,b_start,c_start), 
+              tol = 1e-10, maxiter = 1000)
+  return(list(a = re[nrow(re),3]*(10**(digits_Y)), 
+              b = re[nrow(re),4]/10, 
+              c = re[nrow(re),5]*10))
+  
+}
+
+ 
+res_df = data.frame(country= NULL, a = NULL, b = NULL, c = NULL)
+for (place in place_list){
+  res = logit_growth(place)
+  res_df = bind_rows(res_df, bind_cols(country = place, 
+                               a = res$a,
+                               b = res$b,
+                               c = res$c))
+}
+typeof(res_df)
+saveRDS(res_df, "logistic_res.RDS")
+ 
+# function to apply EM algorithm for multivariate Gaussian mixture model
+EM_MG_algrm <- function(data, ncluster){
+
+  #setting
+  data <- as.matrix(data) %>% scale()
+  N <- nrow(data)
+  q <- ncol(data)
+  p_j <- rep(1/ncluster, ncluster)
+  mu <-  data[sample(N, ncluster),  ] %>% as.matrix()   
+  covmat <- diag(ncol(data))
+  
+  covList <- list()
+  for(i in 1:ncluster){
+    covList[[i]] <- covmat
+  }
+ 
+  count=1
+  while(count <100){
+    mu0 <- mu
+    
+    # E-step: Evaluate posterior probability, gamma
+    gamma <- c()
+    for(j in 1:ncluster){
+      gamma2 <- apply(data,1, mvtnorm::dmvnorm, mean = mu[j,], sigma = covList[[j]])
+      gamma <- cbind(gamma, gamma2)
+    }
+    
+    # M- step: Calculate mu
+    tempmat <- matrix(rep(p_j,N),nrow=N,byrow = T)
+    r <- (gamma * tempmat) / rowSums(gamma * tempmat)  
+    mu <- t(r) %*% data / colSums(r) 
+    
+    # M- step: Calculate Sigma and p
+    for(j in 1:ncluster){
+      sigma <- matrix(rep(0,q^2),ncol=q)
+      for(i in 1:N){
+        sigma = sigma + r[i,j] * (data[i,]-mu0[j,]) %*% t(data[i,]-mu0[j,])   
+      }
+      covList[[j]] <- sigma/sum(r[,j]) 
+    }
+    p_j <- colSums(r)/N
+    count = count + 1
+  }
+  
+  cluster <- which(r == apply(r, 1, max), arr.ind = T)
+  cluster <- cluster[order(cluster[,1]),]
+  return(list(mu = mu,covList = covList, p_j = p_j,cluster = cluster))
+}
+
+set.seed(8160)
+countryname <- res_df$country
+
+model_1 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 3)
+model_2 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 4)
+model_3 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 5)
+model_4 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 6)
+cluster_res = list(model_1 = model_1, model_2 = model_2, model_3 = model_3, model_4 = model_4)
+saveRDS(cluster_res, "cluster_res.RDS")
+
+cluster_res = readRDS("cluster_res.RDS")
+model_1 = cluster_res$model_1
+model_2 = cluster_res$model_2
+model_3 = cluster_res$model_3
+model_4 = cluster_res$model_4
+em_result_1 <- cbind(res_df, model_1$cluster[,2])
+em_result_2 <- cbind(res_df, model_2$cluster[,2])
+em_result_3 <- cbind(res_df, model_3$cluster[,2])
+em_result_4 <- cbind(res_df, model_4$cluster[,2])
+
 scatter3D(em_result_1$a, em_result_1$b, em_result_1$c, bty = "g", pch = 18, 
           col.var = as.integer(model_1$cluster[,2]),
           col = c("red", "green", "yellow"))
@@ -321,13 +556,8 @@ scatter3D(em_result_3$a, em_result_3$b, em_result_3$c, bty = "g", pch = 18,
 scatter3D(em_result_4$a, em_result_4$b, em_result_4$c, bty = "g", pch = 18, 
           col.var = as.integer(model_4$cluster[,2]),
           col = c("red", "green", "yellow","blue", "purple", "black"))
-```
-Since we are doing clustering based on three paramters simutaneouly: a, b and c, it will a little bit messy if we visualize the result in a 3-D plot. So we just simply provided the above result and dertermined which number of mixture components is better. From the above plots we could see that when the number of mixture components is 4, the clustering algorithm gives us a stable result. Too small or too big number of mixtures will either cannot capture the underlying pattern or making the plot more messy.
 
 
-Similarly we applied the k-means clustering method into our data:
-
-```{r}
 set.seed(8160)
 kmeans_model_1 <- kmeans(res_df[,c("a", "b", "c")], 3)
 kmeans_model_2 <- kmeans(res_df[,c("a", "b", "c")], 4)
@@ -337,9 +567,6 @@ kmeans_result_1 <- cbind(res_df, kmeans_model_1$cluster)
 kmeans_result_2 <- cbind(res_df, kmeans_model_2$cluster)
 kmeans_result_3 <- cbind(res_df, kmeans_model_3$cluster)
 kmeans_result_4 <- cbind(res_df, kmeans_model_4$cluster)
-```
-
-```{r}
 
 scatter3D(kmeans_result_1$a, kmeans_result_1$b, kmeans_result_3$c, bty = "g", pch = 18, 
           col.var = as.integer(kmeans_model_1$cluster),
@@ -354,9 +581,3 @@ scatter3D(kmeans_result_4$a, kmeans_result_2$b, kmeans_result_3$c, bty = "g", pc
           col.var = as.integer(kmeans_model_1$cluster),
           col = c("red", "green", "yellow","blue", "purple", "black"))
 ```
-
-Following similar logic in Gaussian mixture model, we just simply provided the above plots and dertermined which value of k is better. Based on the graph, we conclude that K = 4 gives us the best result, which corresponds to the result of Gaussian mixture model. So both  clustering algorithms suggests that we could choose 4 clustering centers in our dataset. As an example of illustration, we would use the result of k-means clustering to answer the questions listed.
-
-Answer for Part 2:
-
-In this porject both K-mean and Guassian mixture model (with EM algorithm) give us similar clustering results with 4 clusters as optimal. We could clearly see patterns in the clustering result, for example, some of the most disease-severe countries are clustered together such as : Italy, US, France and Spain. Also some of the South-American geograpahic region countries are clustered togther such as Chile, Brazil. Finally, most of the countries in the world are clustered together as either their disease situation is controlled and thus not that severe, or still under development but the total case is still relatively low.   

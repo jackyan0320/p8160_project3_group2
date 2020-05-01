@@ -198,7 +198,7 @@ df = tibble(x = x, y = y)
 ggplot() +
   geom_point(aes(x = x, y = y), data = df, color = "blue") +
   geom_point(aes(x = days, y = confirmed_cases), 
-             filter(covid, country_region == place))+
+             filter(covid, country_region == place)) +
   labs(title = place)
 ```
 
