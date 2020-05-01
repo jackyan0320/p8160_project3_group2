@@ -55,7 +55,7 @@ $$
 $$
 where $\nabla l(\boldsymbol{\theta}_{i-1})$ is the gradient, and $[\nabla^2 l(\boldsymbol{\theta}_{i-1})]^{-1}$ is the Hessian matrix.  
   
-  In this particular case, we replace the Hessian matrix with an identity matrix to simplify the computation and increase the efficiency. Step-halfing is also incorporated to control the step size. Then the $i$th step of our Newton algorithm is given by 
+  In this particular case, we replace the Hessian matrix with an identity matrix to simplify the computation and increase the efficiency. Step-halfing is also incorporated to control the step size to make sure we have a monotone trend.. Then the $i$th step of our Newton algorithm is given by 
 
 $$
 \boldsymbol{\theta}_i = \boldsymbol{\theta}_{i-1} + \lambda \boldsymbol H_{i-1, p \times p} \nabla l(\boldsymbol{\theta}_{i-1})
@@ -80,7 +80,7 @@ where $\boldsymbol H_{i-1, p \times p} = I_{p \times p}$, $\lambda \in (0,1)$.
 We set the convergence criteria to be that the difference in MSE of two consecutive iterations is smaller than $10^{-5}$, and the maximum iteration number to be 1000. 
 
 ## 3.2 Clustering
-To understand which countries/regions are similar in terms of the trajectory of COVID-19 cases, we applied two clustering methods, K-mean and Guassian mixture model, to group the fitted parameters $(\hat{a},\hat{b},\hat{c})$.  
+To understand which countries/regions are similar in terms of the trajectory of COVID-19 cases, we applied two clustering methods, K-means and Guassian mixture model, to group the fitted parameters $(\hat{a},\hat{b},\hat{c})$.  
    
   The guassian mixture model assumes that $\{\mathbf x_1,\mathbf x_2,...,\mathbf x_n \} \in \mathbb R^p$ are i.i.d. random vectors following a mixture mulitvariate normal distributions with $k$ hidden groups. In this case, $\mathbf x_i = (Y_i, T_i)'$ and $(a,b,c) \in \mathbb R^3$. And  
   
@@ -129,7 +129,7 @@ By iteratively updating the E-step and the M-step, we can reach a solution upon 
   
 On the other hand, the $K$-means algorithm essentially finds cluster centers and cluster assignments that minimize the objective function
 $$J(\mathbf r, \boldsymbol \mu) = \sum_{i=1}^n\sum_{j=1}^kr_{i,j}\|\mathbf x_i-\mu_k\|^2$$
-where $\{\boldsymbol \mu_1, \boldsymbol \mu_2,...,\boldsymbol \mu_k\}$ are the centers of the $k$ (unknown) clusters, and $\mathbf r_i = (r_{i,1},...,r_{i,k})\in \mathbb R^k$  as the *hard* cluster assignment of $\mathbf x_i$.  
+where $\{\boldsymbol \mu_1, \boldsymbol \mu_2,...,\boldsymbol \mu_k\}$ are the centers of the $k$ (unknown) clusters, and $\mathbf r_i = (r_{i,1},...,r_{i,k})\in \mathbb R^k$  as the *hard* cluster assignment of $\mathbf x_i$. Both Gaussian mixture model and k-means are popular clutsering methods and we would like to compare thier performance in our dataset.  
 
 # 4. Results
 
@@ -172,11 +172,6 @@ In general, Regions with small population size or at an early stage of spreading
 *Do you think if the logistic curve is a reasonable model for fitting the curmulative casesa and predicting future new cases?*  
   
 I think logistic curve might not be an appropriate model for fitting the curmulative cases and predicting future new cases. First our Newton's algorithm suggests that although we spent much efforts in optimizing this optimization algorithm (including standardization, replacing Hessian by Identity mattrix and step-halfing), the convergence speed might still have some unknown internal issue and the results highly depending on the initial starting value if we do not do standardization, which means that our model is not that robust and the estimated curve shape parameters might be questionable in some unusual case. Second, some African countries' results are little bit strange base on our model, which might be due to too liitle data available.  Finally, I may suggest using some other exponential-distribution based curves to fit the data and incorporate more shape paramters in the model fitting process. Or we could some hybrid approaches to fit different types of curves based on preclassification of countries. 
-
-
-## Task 2: Clustering your fitted curves
-
-  Apply K-mean and Guassian mixture model (with EM algorithm) to cluster the fitted parameters $(\hat{a},\hat{b},\hat{c})$; Which algoirhtm does a better job in clustering those curves? Are the resulting clusters related to geogrpahic regions, or the starting timeing of the local virus speading, or the resources of the regions? You may use external informations to help understand the clusters, i.e. find plausible explanations why some regions have similar $(a, b,c)$?
 
 
 \newpage
@@ -241,3 +236,127 @@ plot1 + plot2
 ```
 \center __Figure 3__ Logistic curves of selected countries with steep rate of growth \center
 \newpage
+
+## Task 2: Clustering your fitted curves
+
+*Apply K-mean and Guassian mixture model (with EM algorithm) to cluster the fitted parameters $(\hat{a},\hat{b},\hat{c})$; Which algoirhtm does a better job in clustering those curves? Are the resulting clusters related to geogrpahic regions, or the starting timeing of the local virus speading, or the resources of the regions? You may use external informations to help understand the clusters, i.e. find plausible explanations why some regions have similar $(a, b,c)$?*
+
+We first wrote the function for applying EM algorithm for multivariate Gaussian mixture model as following:
+
+```{r}
+EM_MG_algrm <- function(data, ncluster){
+
+  #setting
+  data <- as.matrix(data) %>% scale()
+  N <- nrow(data)
+  q <- ncol(data)
+  p_j <- rep(1/ncluster, ncluster)
+  mu <-  data[sample(N, ncluster),  ] %>% as.matrix()   
+  covmat <- diag(ncol(data))
+  
+  covList <- list()
+  for(i in 1:ncluster){
+    covList[[i]] <- covmat
+  }
+ 
+  count=1
+  while(count <100){
+    mu0 <- mu
+    
+    # E-step: Evaluate posterior probability, gamma
+    gamma <- c()
+    for(j in 1:ncluster){
+      gamma2 <- apply(data,1, mvtnorm::dmvnorm, mean = mu[j,], sigma = covList[[j]])
+      gamma <- cbind(gamma, gamma2)
+    }
+    
+    # M- step: Calculate mu
+    tempmat <- matrix(rep(p_j,N),nrow=N,byrow = T)
+    r <- (gamma * tempmat) / rowSums(gamma * tempmat)  
+    mu <- t(r) %*% data / colSums(r) 
+    
+    # M- step: Calculate Sigma and p
+    for(j in 1:ncluster){
+      sigma <- matrix(rep(0,q^2),ncol=q)
+      for(i in 1:N){
+        sigma = sigma + r[i,j] * (data[i,]-mu0[j,]) %*% t(data[i,]-mu0[j,])   
+      }
+      covList[[j]] <- sigma/sum(r[,j]) 
+    }
+    p_j <- colSums(r)/N
+    count = count + 1
+  }
+  
+  cluster <- which(r == apply(r, 1, max), arr.ind = T)
+  cluster <- cluster[order(cluster[,1]),]
+  return(list(mu = mu,covList = covList, p_j = p_j,cluster = cluster))
+}
+```
+
+Then we tried different number of mixture components as following:
+
+```{r}
+library("plot3D")
+#try # of mixture components = 3,4,5,6
+set.seed(8160)
+countryname <- res_df$country
+countryname 
+model_1 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 3)
+model_2 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 4)
+model_3 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 5)
+model_4 <- EM_MG_algrm(res_df[,c("a", "b", "c")], 6)
+em_result_1 <- cbind(res_df, model_1$cluster[,2])
+em_result_2 <- cbind(res_df, model_2$cluster[,2])
+em_result_3 <- cbind(res_df, model_3$cluster[,2])
+em_result_4 <- cbind(res_df, model_4$cluster[,2])
+scatter3D(em_result_1$a, em_result_1$b, em_result_1$c, bty = "g", pch = 18, 
+          col.var = as.integer(model_1$cluster[,2]),
+          col = c("red", "green", "yellow"))
+scatter3D(em_result_2$a, em_result_2$b, em_result_2$c, bty = "g", pch = 18, 
+          col.var = as.integer(model_2$cluster[,2]),
+          col = c("red", "green", "yellow", "blue"))
+scatter3D(em_result_3$a, em_result_3$b, em_result_3$c, bty = "g", pch = 18, 
+          col.var = as.integer(model_3$cluster[,2]),
+          col = c("red", "green", "yellow","blue", "purple"))
+scatter3D(em_result_4$a, em_result_4$b, em_result_4$c, bty = "g", pch = 18, 
+          col.var = as.integer(model_4$cluster[,2]),
+          col = c("red", "green", "yellow","blue", "purple", "black"))
+```
+Since we are doing clustering based on three paramters simutaneouly: a, b and c, it will a little bit messy if we visualize the result in a 3-D plot. So we just simply provided the above result and dertermined which number of mixture components is better. From the above plots we could see that when the number of mixture components is 4, the clustering algorithm gives us a stable result. Too small or too big number of mixtures will either cannot capture the underlying pattern or making the plot more messy.
+
+
+Similarly we applied the k-means clustering method into our data:
+
+```{r}
+set.seed(8160)
+kmeans_model_1 <- kmeans(res_df[,c("a", "b", "c")], 3)
+kmeans_model_2 <- kmeans(res_df[,c("a", "b", "c")], 4)
+kmeans_model_3 <- kmeans(res_df[,c("a", "b", "c")], 5)
+kmeans_model_4 <- kmeans(res_df[,c("a", "b", "c")], 6)
+kmeans_result_1 <- cbind(res_df, kmeans_model_1$cluster)
+kmeans_result_2 <- cbind(res_df, kmeans_model_2$cluster)
+kmeans_result_3 <- cbind(res_df, kmeans_model_3$cluster)
+kmeans_result_4 <- cbind(res_df, kmeans_model_4$cluster)
+```
+
+```{r}
+
+scatter3D(kmeans_result_1$a, kmeans_result_1$b, kmeans_result_3$c, bty = "g", pch = 18, 
+          col.var = as.integer(kmeans_model_1$cluster),
+          col = c("red", "green", "yellow"))
+scatter3D(kmeans_result_2$a, kmeans_result_2$b, kmeans_result_3$c, bty = "g", pch = 18, 
+          col.var = as.integer(kmeans_model_1$cluster),
+          col = c("red", "green", "yellow", "blue"))
+scatter3D(kmeans_result_3$a, kmeans_result_2$b, kmeans_result_3$c, bty = "g", pch = 18, 
+          col.var = as.integer(kmeans_model_1$cluster),
+          col = c("red", "green", "yellow","blue", "purple"))
+scatter3D(kmeans_result_4$a, kmeans_result_2$b, kmeans_result_3$c, bty = "g", pch = 18, 
+          col.var = as.integer(kmeans_model_1$cluster),
+          col = c("red", "green", "yellow","blue", "purple", "black"))
+```
+
+Following similar logic in Gaussian mixture model, we just simply provided the above plots and dertermined which value of k is better. Based on the graph, we conclude that K = 4 gives us the best result, which corresponds to the result of Gaussian mixture model. So both  clustering algorithms suggests that we could choose 4 clustering centers in our dataset. As an example of illustration, we would use the result of k-means clustering to answer the questions listed.
+
+*Apply K-mean and Guassian mixture model (with EM algorithm) to cluster the fitted parameters $(\hat{a},\hat{b},\hat{c})$; Which algoirhtm does a better job in clustering those curves? Are the resulting clusters related to geogrpahic regions, or the starting timeing of the local virus speading, or the resources of the regions? You may use external informations to help understand the clusters, i.e. find plausible explanations why some regions have similar $(a, b,c)$?*
+
+In this porject both K-mean and Guassian mixture model (with EM algorithm) give us similar clustering results with 4 clusters as optimal. We could clearly see patterns in the clustering result, for example, some of the most disease-severe countries are clustered together such as : Italy, US, France and Spain. Also some of the South-American geograpahic region countries are clustered togther such as Chile, Brazil. Finally, most of the countries in the world are clustered together as either their disease situation is controlled and thus not that severe, or still under development but the total case is still relatively low.   

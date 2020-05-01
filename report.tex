@@ -1,0 +1,337 @@
+\PassOptionsToPackage{unicode=true}{hyperref} % options for packages loaded elsewhere
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provides euro and other symbols
+\else % if luatex or xelatex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={Project 3: Analyses of daily COVID-19 cases across nations},
+  pdfauthor={Jiayi Shen (js5354), Siquan Wang (sw3442), Jack Yan (xy2395)},
+  pdfborder={0 0 0},
+  breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-2}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+  \let\oldparagraph\paragraph
+  \renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+  \let\oldsubparagraph\subparagraph
+  \renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+% set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+
+
+\title{Project 3: Analyses of daily COVID-19 cases across nations}
+\author{Jiayi Shen (js5354), Siquan Wang (sw3442), Jack Yan (xy2395)}
+\date{5/1/2020}
+
+\begin{document}
+\maketitle
+
+\hypertarget{introduction}{%
+\section{1. Introduction}\label{introduction}}
+
+The pandemic of COVID-19 is the biggest challenge that the world is
+facing right now. Our lifes are all deeply affected by this public
+health crisis. By building a model on the growth of COVID-19 cases, we
+can have a better understanding of the current status and then plan
+future responses. Thus analyzing existing data and predicting future
+trajectories has become the most important task faced by public health
+expertises and policy makers.
+
+The objective of this project includings:\\
+- Develop an optmization algorithm to fit a logisitc curve to each
+region, using the global COVID-19 data;\\
+- Evaluate how appropiate it is to use such model;\\
+- Apply clustering methods to the logistic grwoth model parameters, and
+observe the patterns.
+
+\hypertarget{data}{%
+\subsection{2. Data}\label{data}}
+
+The datasets used in this project are adapted from
+\url{https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_daily_reports}.
+We used the latest data updated on 04/29/2020, so that we have more data
+points. The data recorded the following variables:
+
+\textbf{Id:} Record ID
+
+\textbf{Province/State:} The lcoal state/province of the record; 54\%
+records do not have this info;
+
+\textbf{Country/Region:} The country/regionoof the record;
+
+\textbf{Lat:} Lattudiute of the record;
+
+\textbf{Long:} Longitude of the record;
+
+\textbf{Date:} Date of the record; from Jan 21 to March 23;
+
+\textbf{ConfirmedCases:} The number of confirme case on that day;
+
+\textbf{Fatalities:} The number of death on that day;
+
+For the purpose of fitting logistic growth curve, the main variables of
+interest are \texttt{Country/Region} and \texttt{ConfirmedCases}. We
+groupped the dataset by \texttt{Country/Region}, and pulled out
+\texttt{days\ since\ first\ case} and
+\texttt{cumulative\ confirmed\ cases\ on\ each\ day}.
+
+\hypertarget{method}{%
+\section{3. Method}\label{method}}
+
+\hypertarget{logisitic-curves}{%
+\subsection{3.1 Logisitic curves}\label{logisitic-curves}}
+
+Logisitic curves could be one way to model the trajectory of cumulative
+cases; It is a parametric function with the form
+\[f(t) = \frac{a}{ 1+ exp\{-b(t-c)\}},\] where \(t\) is the days since
+the first infection; \(a\) is the upper bound, i.e.~the maxium number of
+cases a region can reach, \(b\) is growth rate, and \(c\) is the
+mid-point, where the curve changes from convex to concave; Each curve is
+uniquely defined by \((a,b,c)\). By design a logistic curve increases
+exponentially at begining and slows down at the end.
+
+Consider the most commonly used loss function: Mean Squared Error (MSE),
+which takes the form \[
+l = \frac{1}{n} \sum_{i=1}^n (Y_i - \hat{Y_i})^2  = \frac{1}{n} \sum_{i=1}^n (Y_i - \frac{a}{ 1+ \exp\{-b(T_i-c)\}})^2
+\] Then our goal is to minimize the above loss function with respect to
+\((a,b,c)\). To do this, we can apply Newton-Raphson algorithm. Let
+\(\boldsymbol{\theta} = (a,b,c)\). Newton's method suggests to update
+\(\boldsymbol{\theta}\) iteratively, such that the \(i\)th step is given
+by \[
+\boldsymbol{\theta}_i = \boldsymbol{\theta}_{i-1} -[\nabla^2 l(\boldsymbol{\theta}_{i-1})]^{-1} \nabla l(\boldsymbol{\theta}_{i-1})
+\] where \(\nabla l(\boldsymbol{\theta}_{i-1})\) is the gradient, and
+\([\nabla^2 l(\boldsymbol{\theta}_{i-1})]^{-1}\) is the Hessian matrix.
+
+In this particular case, we replace the Hessian matrix with an identity
+matrix to simplify the computation and increase the efficiency.
+Step-halfing is also incorporated to control the step size to make sure
+we have a monotone trend.. Then the \(i\)th step of our Newton algorithm
+is given by
+
+\[
+\boldsymbol{\theta}_i = \boldsymbol{\theta}_{i-1} + \lambda \boldsymbol H_{i-1, p \times p} \nabla l(\boldsymbol{\theta}_{i-1})
+\] where \(\boldsymbol H_{i-1, p \times p} = I_{p \times p}\),
+\(\lambda \in (0,1)\).
+
+The gradient vector \(\nabla l(\boldsymbol{\theta}_{i-1})\) of our loss
+function is: \begin{equation}
+\begin{pmatrix}
+  {\partial l}/{\partial a}\\
+  {\partial l}/{\partial b}\\
+  {\partial l}/{\partial c}
+\end{pmatrix}
+=
+\begin{pmatrix}
+  \frac{2}{n}\sum_{i=1}^n (Y_i - \frac{a}{ 1+ \exp \{-b(T_i-c)\}}) \cdot \frac{-1}{1+\exp \{-b(T_i-c)\} }\\
+  \frac{2}{n}\sum_{i=1}^n (Y_i - \frac{a}{ 1+ \exp \{-b(T_i-c)\}}) \cdot \frac{-a(T_i-c) \exp\{-b(T_i-c)\})}{(1+\exp \{-b(T_i-c)\})^2} \\
+  \frac{2}{n}\sum_{i=1}^n (Y_i - \frac{a}{ 1+ \exp \{-b(T_i-c)\}}) \cdot \frac{ab \exp\{-b(T_i-c)\})}{(1+\exp \{-b(T_i-c)\})^2}
+\end{pmatrix}
+\end{equation}
+
+We set the convergence criteria to be that the difference in MSE of two
+consecutive iterations is smaller than \(10^{-5}\), and the maximum
+iteration number to be 1000.
+
+\hypertarget{clustering}{%
+\subsection{3.2 Clustering}\label{clustering}}
+
+To understand which countries/regions are similar in terms of the
+trajectory of COVID-19 cases, we applied two clustering methods, K-means
+and Guassian mixture model, to group the fitted parameters
+\((\hat{a},\hat{b},\hat{c})\).
+
+The guassian mixture model assumes that
+\(\{\mathbf x_1,\mathbf x_2,...,\mathbf x_n \} \in \mathbb R^p\) are
+i.i.d. random vectors following a mixture mulitvariate normal
+distributions with \(k\) hidden groups. In this case,
+\(\mathbf x_i = (Y_i, T_i)'\) and \((a,b,c) \in \mathbb R^3\). And
+
+\[\mathbf x_i\sim
+\begin{cases}
+N(\boldsymbol \mu_1, \Sigma_1), \mbox{with probability }p_1 \\
+N(\boldsymbol \mu_2, \Sigma_2), \mbox{with probability }p_2\\
+\quad\quad\vdots\quad\quad,\quad\quad \vdots\\
+N(\boldsymbol \mu_k, \Sigma_k), \mbox{with probability }p_k\\
+\end{cases}
+\]
+
+\[\mathbf x_i\sim
+\begin{cases}
+N(\boldsymbol \mu_1, \Sigma_1), \mbox{with probability }p_1 \\
+N(\boldsymbol \mu_2, \Sigma_2), \mbox{with probability }p_2\\
+\quad\quad\vdots\quad\quad,\quad\quad \vdots\\
+N(\boldsymbol \mu_k, \Sigma_k), \mbox{with probability }p_k\\
+\end{cases}
+\]
+
+The density of a multivariate normal \(\mathbf x_i\) is
+\[f(\mathbf x; \boldsymbol \mu, \Sigma) = \frac{\text{exp} (-\frac{1}{2}(\boldsymbol x - \boldsymbol \mu)^T\Sigma^{-1}(\boldsymbol x - \boldsymbol \mu))}{\sqrt{{(2\pi)^p|\Sigma|}}}\]
+The observed likelihood of
+\(\{\mathbf x_1,\mathbf x_2,...,\mathbf x_n \}\) is
+
+\[L(\theta; \mathbf x_1,\mathbf x_2,...,\mathbf x_n) = \prod_{i=1}^n \sum_{j = 1}^k p_j f(\mathbf x_i; \boldsymbol \mu_j, \Sigma_j)\]
+Let \(\mathbf r_i = (r_{i,1},...,r_{i,k})\in \mathbb R^k\) as the
+cluster indicator of \(\mathbf x_i\), which takes form
+\((0, 0,...,0,1,0,0)\) with
+\(r_{i,j} =I\{ \mathbf x_i\mbox{ belongs to cluster } j\}\). The cluster
+indicator \(\mathbf r_i\) is a latent variable that cannot be observed.
+Therefore, we use EM algorithm to iteratively estimate model parameters.
+
+\textbf{E-step}: Evaluate the responsibilities using the current
+parameter values
+
+\[\gamma_{i, k} ^{(t)}= P(r_{i,k}=1 |\mathbf x_i,  \theta^{(t)}) =  
+\frac{p_k^{(t)}f(\mathbf x_i|\boldsymbol \mu_k^{(t)}, \Sigma_k^{(t)})}
+{\sum_{j=1}^K p_k^{(t)} f(\mathbf x_i|\boldsymbol \mu_j^{(t)}, \Sigma_j^{(t)})}\]
+
+\textbf{M-step}:\\
+\(\theta^{(t+1)} = \arg\max\ell( \mathbf{x}, \mathbf{\gamma}^{(t)}, \theta )\).\\
+Let \(n_k = \sum_{i=1}^n \gamma_{i, k}\), we have
+
+\[\boldsymbol \mu_k^{(t+1)} = \frac{1}{n_k} \sum_{i=1}^n \gamma_{i, k} \mathbf x_i\]
+
+\[\Sigma_k^{(t+1)} = \frac{1}{n_k} \sum_{i=1}^n \gamma_{i, k} (\mathbf x_i - \boldsymbol \mu_k^{(t+1)})(\mathbf x_i - \boldsymbol \mu_k^{(t+1)})^T\]
+
+\[p_k^{(t+1)} = \frac{n_k}{n}\]
+
+By iteratively updating the E-step and the M-step, we can reach a
+solution upon convergence.
+
+On the other hand, the \(K\)-means algorithm essentially finds cluster
+centers and cluster assignments that minimize the objective function
+\[J(\mathbf r, \boldsymbol \mu) = \sum_{i=1}^n\sum_{j=1}^kr_{i,j}\|\mathbf x_i-\mu_k\|^2\]
+where \(\{\boldsymbol \mu_1, \boldsymbol \mu_2,...,\boldsymbol \mu_k\}\)
+are the centers of the \(k\) (unknown) clusters, and
+\(\mathbf r_i = (r_{i,1},...,r_{i,k})\in \mathbb R^k\) as the
+\emph{hard} cluster assignment of \(\mathbf x_i\). Both Gaussian mixture
+model and k-means are popular clutsering methods and we would like to
+compare thier performance in our dataset.
+
+\hypertarget{results}{%
+\section{4. Results}\label{results}}
+
+\hypertarget{logistic-curve}{%
+\subsection{4.1 Logistic curve}\label{logistic-curve}}
+
+Logistic curves were used to fit cumulative confirmed cases in each
+country/region. The fitted results for some selected countries are shown
+in \textbf{Figure 1}. According to the model, as of 04/29/2020, 37
+regions have passed the midpoint, among which 100 regions are close to
+the end of virus spreading. If the confirmed cases in a region is
+greater than 95\% of the estimated \texttt{a} (upper bound) in the
+logistic curve, we define the region as close to the end of virus
+spreading.
+
+In general, Regions with small population size or at an early stage of
+spreading tend to have a more flat rate of growth, such as Bhutan and
+Venezuela (\textbf{Figure 2}). On the other hand, some regions that are
+close or have reached the end of virus spreading (at least according to
+the data, \textbf{Figure 3}) tend to have a more steep rate of growth.
+
+\hypertarget{task-1.2}{%
+\subsection{Task 1.2}\label{task-1.2}}
+
+\emph{Do you think if the logistic curve is a reasonable model for
+fitting the curmulative casesa and predicting future new cases?}
+
+I think logistic curve might not be an appropriate model for fitting the
+curmulative cases and predicting future new cases. First our Newton's
+algorithm suggests that although we spent much efforts in optimizing
+this optimization algorithm (including standardization, replacing
+Hessian by Identity mattrix and step-halfing), the convergence speed
+might still have some unknown internal issue and the results highly
+depending on the initial starting value if we do not do standardization,
+which means that our model is not that robust and the estimated curve
+shape parameters might be questionable in some unusual case. Second,
+some African countries' results are little bit strange base on our
+model, which might be due to too liitle data available. Finally, I may
+suggest using some other exponential-distribution based curves to fit
+the data and incorporate more shape paramters in the model fitting
+process. Or we could some hybrid approaches to fit different types of
+curves based on preclassification of countries.
+
+\newpage
+
+\hypertarget{figures}{%
+\section{Figures}\label{figures}}
+
+\includegraphics{report_files/figure-latex/unnamed-chunk-2-1.pdf}
+
+\center \textbf{Figure 1} Logistic curves fitted on cumulative confirmed
+cases in selected countries \center
+
+\newpage
+
+\includegraphics{report_files/figure-latex/unnamed-chunk-3-1.pdf}
+\center \textbf{Figure 2} Logistic curves of selected countries with
+flat rate of growth \center \newpage
+
+\includegraphics{report_files/figure-latex/unnamed-chunk-4-1.pdf}
+\center \textbf{Figure 3} Logistic curves of selected countries with
+steep rate of growth \center \newpage
+
+\hypertarget{task-2-clustering-your-fitted-curves}{%
+\subsection{Task 2: Clustering your fitted
+curves}\label{task-2-clustering-your-fitted-curves}}
+
+\emph{Apply K-mean and Guassian mixture model (with EM algorithm) to
+cluster the fitted parameters \((\hat{a},\hat{b},\hat{c})\); Which
+algoirhtm does a better job in clustering those curves? Are the
+resulting clusters related to geogrpahic regions, or the starting
+timeing of the local virus speading, or the resources of the regions?
+You may use external informations to help understand the clusters,
+i.e.~find plausible explanations why some regions have similar
+\((a, b,c)\)?}
+
+\end{document}
