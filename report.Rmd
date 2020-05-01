@@ -81,23 +81,71 @@ where $\boldsymbol H_{i-1, p \times p} = I_{p \times p}$, $\lambda \in (0,1)$.
 We set the convergence criteria to be that the difference in MSE of two consecutive iterations is smaller than $10^{-5}$, and the maximum iteration number to be 1000. 
 
 ## Method: Clustering
+To understand which countries/regions are similar in terms of the trajectory of COVID-19 cases, we applied two clustering methods, K-mean and Guassian mixture model, to group the fitted parameters $(\hat{a},\hat{b},\hat{c})$.  
+   
+  The guassian mixture model assumes that $\{\mathbf x_1,\mathbf x_2,...,\mathbf x_n \} \in \mathbb R^p$ are i.i.d. random vectors following a mixture mulitvariate normal distributions with $k$ hidden groups. In this case, $\mathbf x_i = (Y_i, T_i)'$ and $(a,b,c) \in \mathbb R^3$. And  
+  
+$$\mathbf x_i\sim
+\begin{cases}
+N(\boldsymbol \mu_1, \Sigma_1), \mbox{with probability }p_1 \\
+N(\boldsymbol \mu_2, \Sigma_2), \mbox{with probability }p_2\\
+\quad\quad\vdots\quad\quad,\quad\quad \vdots\\
+N(\boldsymbol \mu_k, \Sigma_k), \mbox{with probability }p_k\\
+\end{cases}
+$$
+
+$$\mathbf x_i\sim
+\begin{cases}
+N(\boldsymbol \mu_1, \Sigma_1), \mbox{with probability }p_1 \\
+N(\boldsymbol \mu_2, \Sigma_2), \mbox{with probability }p_2\\
+\quad\quad\vdots\quad\quad,\quad\quad \vdots\\
+N(\boldsymbol \mu_k, \Sigma_k), \mbox{with probability }p_k\\
+\end{cases}
+$$
+
+The density of a multivariate normal $\mathbf x_i$ is 
+$$f(\mathbf x; \boldsymbol \mu, \Sigma) = \frac{\text{exp} (-\frac{1}{2}(\boldsymbol x - \boldsymbol \mu)^T\Sigma^{-1}(\boldsymbol x - \boldsymbol \mu))}{\sqrt{{(2\pi)^p|\Sigma|}}}$$
+The observed likelihood of $\{\mathbf x_1,\mathbf x_2,...,\mathbf x_n \}$ is 
+
+$$L(\theta; \mathbf x_1,\mathbf x_2,...,\mathbf x_n) = \prod_{i=1}^n \sum_{j = 1}^k p_j f(\mathbf x_i; \boldsymbol \mu_j, \Sigma_j)$$
+Let $\mathbf r_i = (r_{i,1},...,r_{i,k})\in \mathbb R^k$  as the cluster indicator of $\mathbf x_i$, which takes form $(0, 0,...,0,1,0,0)$ with $r_{i,j} =I\{ \mathbf x_i\mbox{ belongs to  cluster } j\}$. The cluster indicator $\mathbf r_i$ is a latent variable that cannot be observed. Therefore, we use EM algorithm to iteratively estimate model parameters.  
+
+**E-step**: Evaluate the responsibilities using the current parameter values
+
+$$\gamma_{i, k} ^{(t)}= P(r_{i,k}=1 |\mathbf x_i,  \theta^{(t)}) =  
+\frac{p_k^{(t)}f(\mathbf x_i|\boldsymbol \mu_k^{(t)}, \Sigma_k^{(t)})}
+{\sum_{j=1}^K p_k^{(t)} f(\mathbf x_i|\boldsymbol \mu_j^{(t)}, \Sigma_j^{(t)})}$$
+
+**M-step**:   
+$\theta^{(t+1)} = \arg\max\ell( \mathbf{x}, \mathbf{\gamma}^{(t)}, \theta )$.  
+Let $n_k = \sum_{i=1}^n \gamma_{i, k}$, we have
+
+$$\boldsymbol \mu_k^{(t+1)} = \frac{1}{n_k} \sum_{i=1}^n \gamma_{i, k} \mathbf x_i$$
+
+$$\Sigma_k^{(t+1)} = \frac{1}{n_k} \sum_{i=1}^n \gamma_{i, k} (\mathbf x_i - \boldsymbol \mu_k^{(t+1)})(\mathbf x_i - \boldsymbol \mu_k^{(t+1)})^T$$
+
+$$p_k^{(t+1)} = \frac{n_k}{n}$$
+
+By iteratively updating the E-step and the M-step, we can reach a solution upon convergence.  
+  
+On the other hand, the $K$-means algorithm essentially finds cluster centers and cluster assignments that minimize the objective function
+$$J(\mathbf r, \boldsymbol \mu) = \sum_{i=1}^n\sum_{j=1}^kr_{i,j}\|\mathbf x_i-\mu_k\|^2$$
+where $\{\boldsymbol \mu_1, \boldsymbol \mu_2,...,\boldsymbol \mu_k\}$ are the centers of the $k$ (unknown) clusters, and $\mathbf r_i = (r_{i,1},...,r_{i,k})\in \mathbb R^k$  as the *hard* cluster assignment of $\mathbf x_i$.  
 
 # Results
 
 ## Task 1.1
-Develop an optmization algorithm to fit a logisitc curve to each region, and find a way to visualize your fitted curves effectively;   What you learn from your fitted models? e.g. how many regions have passed the midpoint? how many regions are approaching to the end of the virus speading; Which regions have faster growth rates and which regions have more "flat" growth? 
+Develop an optmization algorithm to fit a logisitic curve to each region, and find a way to visualize your fitted curves effectively; What you learn from your fitted models? e.g. how many regions have passed the midpoint? how many regions are approaching to the end of the virus speading; Which regions have faster growth rates and which regions have more "flat" growth? 
 
 
 ## Task 1.2
-You can find daily reports after March 23 from the following github site
-
-https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_daily_reports
-
-From those data, do you think if the logistic curve is a reasonable model for fitting the curmulative casesa and predicting future new cases?
+*Do you think if the logistic curve is a reasonable model for fitting the curmulative casesa and predicting future new cases?*  
+  
+I think logistic curve might not be an appropriate model for fitting the curmulative cases and predicting future new cases. First our Newton's algorithm suggests that although we spent much efforts in optimizing this optimization algorithm (including standardization, replacing Hessian by Identity mattrix and step-halfing), the convergence speed might still have some unknown internal issue and the results highly depending on the initial starting value if we do not do standardization, which means that our model is not that robust and the estimated curve shape parameters might be questionable in some unusual case. Second, some African countries' results are little bit strange base on our model, which might be due to too liitle data available.  Finally, I may suggest using some other exponential-distribution based curves to fit the data and incorporate more shape paramters in the model fitting process. Or we could some hybrid approaches to fit different types of curves based on preclassification of countries. 
 
 
 ## Task 2: Clustering your fitted curves
 
-clustering is an effective data exploring tools; It helps develop hypothesis and identify potential risk factors;  Apply K-mean and Guassian mixture model (with EM algorithm) to cluster the fitted parameters $(\hat{a},\hat{b},\hat{c})$; Whicl algoirhtm does a better job in clustering those curves? Are the resulting clusters related to geogrpahic regions, or the starting timeing of the local virus speading, or the resources of the regions? You may use external informations to help understand the clusters, i.e. find plausible explanations why some regions have similar $(a, b,c)$?
+  Apply K-mean and Guassian mixture model (with EM algorithm) to cluster the fitted parameters $(\hat{a},\hat{b},\hat{c})$; Which algoirhtm does a better job in clustering those curves? Are the resulting clusters related to geogrpahic regions, or the starting timeing of the local virus speading, or the resources of the regions? You may use external informations to help understand the clusters, i.e. find plausible explanations why some regions have similar $(a, b,c)$?
 
 
