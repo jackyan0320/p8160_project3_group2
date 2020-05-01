@@ -164,7 +164,7 @@ sum(combined_df$confirmed_cases >= 0.95*combined_df$a & res_df$c < 98)
 
 Logistic curves were used to fit cumulative confirmed cases in each country/region. The fitted results for some selected countries are shown in **Figure 1**. According to the model, as of 04/29/2020, `r sum(res_df$c > 98)` regions have passed the midpoint, among which 100 regions are close to the end of virus spreading. If the confirmed cases in a region is greater than 95% of the estimated `a` (upper bound) in the logistic curve, we define the region as close to the end of virus spreading. 
 
-In general, Regions with small population size or at an early stage of spreading tend to have a more flat rate of growth, such as Bhutan and Venezuela (**Figure 2**). 
+In general, Regions with small population size or at an early stage of spreading tend to have a more flat rate of growth, such as Bhutan and Venezuela (**Figure 2**). On the other hand, some regions that are close or have reached the end of virus spreading (at least according to the data, **Figure 3**) tend to have a more steep rate of growth.
 
 
 
@@ -178,6 +178,8 @@ I think logistic curve might not be an appropriate model for fitting the curmula
 
   Apply K-mean and Guassian mixture model (with EM algorithm) to cluster the fitted parameters $(\hat{a},\hat{b},\hat{c})$; Which algoirhtm does a better job in clustering those curves? Are the resulting clusters related to geogrpahic regions, or the starting timeing of the local virus speading, or the resources of the regions? You may use external informations to help understand the clusters, i.e. find plausible explanations why some regions have similar $(a, b,c)$?
 
+
+\newpage
 
 # Figures
 ```{r, echo=FALSE, message=FALSE}
